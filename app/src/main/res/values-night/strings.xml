@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="view_product">View Product</string>
+    <string name="sdk_not_initialized">Clevertap SDK not initialized</string>
+    <string name="event_trigger_failed">Event Trigger Failed</string>
+    <string name="profile_update_failed">Profile Update Failed</string>
+    <string name="channel_not_created">Channel not created</string>
+    <string name="on_user_login">OnUserLogin</string>
+    <string name="profile_push">Profile Push</string>
+    <string name="push_message">Push Message</string>
+    <string name="in_app_message">In App</string>
+    <string name="native_display_button">Native Disp</string>
+    <string name="app_inbox">App Inbox</string>
+    <string name="get_message_inbox">Get Message Inbox</string>
+    <string name="push_templates">Push Templates</string>
+    <string name="addedtocart">Add to Cart</string>
+    <string name="charged">Charged</string>
+</resources>
