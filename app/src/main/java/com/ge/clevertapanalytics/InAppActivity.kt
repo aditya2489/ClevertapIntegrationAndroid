@@ -104,9 +104,8 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
         val adapter = SliderAdapter(this, sliderDataArrayList)
         sliderView!!.autoCycleDirection = SliderView.LAYOUT_DIRECTION_LTR
         sliderView!!.setSliderAdapter(adapter)
-        sliderView!!.scrollTimeInSec = 3
-        sliderView!!.isAutoCycle = true
-        sliderView!!.startAutoCycle()
+        sliderView!!.isAutoCycle = false
+        sliderView!!.setOffscreenPageLimit(3)
     }
 
 }

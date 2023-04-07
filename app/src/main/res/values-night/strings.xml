@@ -13,6 +13,6 @@
     <string name="app_inbox">App Inbox</string>
     <string name="get_message_inbox">Get Message Inbox</string>
     <string name="push_templates">Push Templates</string>
-    <string name="addedtocart">Add to Cart</string>
+    <string name="addedtocart">ATC</string>
     <string name="charged">Charged</string>
 </resources>

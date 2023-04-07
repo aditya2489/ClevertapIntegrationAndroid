@@ -110,6 +110,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         optin = findViewById(R.id.setOptout)
         offline = findViewById(R.id.offline)
 
+        optin!!.setOnCheckedChangeListener(this)
+        offline!!.setOnCheckedChangeListener(this)
         cleverTapDefaultInstance = (this.application as PushTemplateHandler).ctInstance
 
         initializeCleverTapSDK()
@@ -127,8 +129,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         }
 
         inAppButton!!.setOnClickListener {
-            startActivity( Intent(applicationContext,InAppActivity::class.java))
-            //cleverTapDefaultInstance!!.pushEvent("ShowInApp")
+
+            cleverTapDefaultInstance!!.pushEvent("ShowInApp")
             //val billaction: HashMap<String, Any> = HashMap<String, Any>()
             //billaction.put("bill_subscribed", "true")
             //billaction.put("bill_type", "phone")
@@ -202,7 +204,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
         clearCart!!.setOnClickListener {
             //clearCart()
-            createEvent()
+            startActivity( Intent(applicationContext,InAppActivity::class.java))
+            //createEvent()
         }
 
         bounded!!.setOnClickListener {
@@ -584,8 +587,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
     override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
         when (buttonView!!.id) {
-            R.id.setOptout -> Log.i("switch_compat", isChecked.toString() + "")
-            R.id.offline -> Log.i("switch_compat2", isChecked.toString() + "")
+            R.id.setOptout -> cleverTapDefaultInstance!!.setOptOut(isChecked)
+            R.id.offline -> cleverTapDefaultInstance!!.setOffline(isChecked)
         }
     }
 
