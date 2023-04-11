@@ -25,6 +25,7 @@ import com.clevertap.android.sdk.*
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
 import com.clevertap.android.sdk.inbox.CTInboxMessage
+import com.segment.analytics.Analytics
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -32,6 +33,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.Executors
+import com.segment.analytics.Properties;
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
@@ -140,6 +142,11 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
         pushNotification!!.setOnClickListener {
             cleverTapDefaultInstance!!.pushEvent("ShowPush")
+            Analytics.with(applicationContext)
+
+            Analytics.with(applicationContext).track(
+                "SEG-ShowPush", Properties().putValue("value", "testValue").putValue("testDate", Date(System.currentTimeMillis()))
+            )
             //cleverTapDefaultInstance!!.pushEvent("DateCheck")
         }
         appInboxButton!!.setOnClickListener(View.OnClickListener {

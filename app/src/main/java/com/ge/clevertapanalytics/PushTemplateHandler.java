@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -14,11 +15,19 @@ import com.clevertap.android.sdk.ActivityLifecycleCallback;
 import com.clevertap.android.sdk.CleverTapAPI;
 import com.clevertap.android.sdk.interfaces.NotificationHandler;
 import com.clevertap.android.sdk.pushnotification.amp.CTPushAmpListener;
+import com.segment.analytics.Analytics;
+import com.segment.analytics.android.integrations.clevertap.CleverTapIntegration;
 
 @SuppressWarnings({"unused"})
 public class PushTemplateHandler extends android.app.Application  implements CTPushAmpListener {
 
     private CleverTapAPI cleverTapDefaultInstance;
+    private static final String TAG = String.format("%s.%s", "CLEVERTAP", PushTemplateHandler.class.getName());
+    private static final String WRITE_KEY = "rFIA1p2jpYonQcHsXnGtbrCRYN5289i6"; //This you will receive under source in segment.
+    private static final String CLEVERTAP_KEY = "CleverTap";
+    public static boolean sCleverTapSegmentEnabled = false;
+    private static Handler handler = null;
+
     @Override
     public void onCreate() {
         setCTInstance();
@@ -30,6 +39,22 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
 
         setActivitycallbacks();
         super.onCreate();
+        Analytics analytics = new Analytics.Builder(getApplicationContext(), WRITE_KEY)
+                .logLevel(Analytics.LogLevel.VERBOSE)
+                .trackApplicationLifecycleEvents()
+                .use(CleverTapIntegration.FACTORY)
+                .build();
+
+        analytics.onIntegrationReady(CLEVERTAP_KEY, new Analytics.Callback<CleverTapAPI>()
+        {
+            @Override
+            public void onReady(CleverTapAPI instance) {
+                Log.i(TAG, "analytics.onIntegrationReady() called");
+                cleverTapIntegrationReady(instance);
+            }
+        });
+        Analytics.setSingletonInstance(analytics);
+
     }
 
     private void setActivitycallbacks() {
@@ -103,5 +128,12 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
     public void onPushAmpPayloadReceived(Bundle extras) {
 
         Log.d("PushTemplateHandler------------", extras.keySet().size()+"");
+    }
+
+    private void cleverTapIntegrationReady(CleverTapAPI instance)
+    {
+        instance.enablePersonalization();
+        sCleverTapSegmentEnabled = true;
+        cleverTapDefaultInstance = instance;
     }
 }
