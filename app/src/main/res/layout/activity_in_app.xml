@@ -6,14 +6,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".InAppActivity"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:gravity="center">
 
     <Button
         android:id="@+id/moveAhead"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Custom KV Native Display"
-        />
+        android:layout_marginBottom="50dp"/>
 
     <com.smarteist.autoimageslider.SliderView
         android:id="@+id/slider"
