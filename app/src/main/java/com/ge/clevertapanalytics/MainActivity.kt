@@ -2,8 +2,10 @@ package com.ge.clevertapanalytics
 
 //import com.clevertap.android.pushtemplates.TemplateRenderer
 
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
@@ -20,10 +22,13 @@ import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.SwitchCompat
 import androidx.cardview.widget.CardView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.clevertap.android.pushtemplates.TemplateRenderer
 import com.clevertap.android.sdk.*
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
+import com.clevertap.android.sdk.inapp.CTLocalInApp
 import com.clevertap.android.sdk.inbox.CTInboxMessage
 import com.segment.analytics.Analytics
 import org.json.JSONArray
@@ -37,8 +42,8 @@ import com.segment.analytics.Properties;
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
-    InboxMessageListener,
-    InboxMessageButtonListener, DisplayUnitListener ,CompoundButton.OnCheckedChangeListener{
+InboxMessageListener,
+    InboxMessageButtonListener, DisplayUnitListener ,CompoundButton.OnCheckedChangeListener,PushPermissionResponseListener{
     var eventButton: AppCompatButton? = null
     var profilePushButton: AppCompatButton? = null
     var cleverTapDefaultInstance: CleverTapAPI? = null
@@ -115,11 +120,12 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         optin!!.setOnCheckedChangeListener(this)
         offline!!.setOnCheckedChangeListener(this)
         cleverTapDefaultInstance = (this.application as PushTemplateHandler).ctInstance
-
+        cleverTapDefaultInstance?.registerPushPermissionNotificationResponseListener(this)
+        getPushPermission()
         initializeCleverTapSDK()
         initializeNativeDisplay()
         initialiseAppInBox()
-        setupPushNotifications()
+        //setupPushNotifications()
         setPushTemplateJson()
         //setMultiInstanceEnvironment()
         eventButton!!.setOnClickListener {
@@ -152,6 +158,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         appInboxButton!!.setOnClickListener(View.OnClickListener {
 
             cleverTapDefaultInstance!!.showAppInbox()
+            cleverTapDefaultInstance!!.allInboxMessages
         })
         getAppInboxMessage!!.setOnClickListener {
             cleverTapDefaultInstance!!.pushEvent("GetInboxMessage")
@@ -219,6 +226,37 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
             sendBoundedEvents()
         }
     }
+
+    @SuppressLint("RestrictedApi")
+    private fun getPushPermission() {
+        try {
+            if(!cleverTapDefaultInstance!!.isPushPermissionGranted){
+                cleverTapDefaultInstance!!.promptForPushPermission(true)
+                val builder = CTLocalInApp.builder()
+                    .setInAppType(CTLocalInApp.InAppType.HALF_INTERSTITIAL)
+                    .setTitleText("Get Notified")
+                    .setMessageText("Please enable notifications on your device to use Push Notifications.")
+                    .followDeviceOrientation(true)
+                    .setPositiveBtnText("Allow")
+                    .setNegativeBtnText("Cancel")
+                    .setBackgroundColor(Constants.WHITE)
+                    .setBtnBorderColor(Constants.BLUE)
+                    .setTitleTextColor(Constants.BLUE)
+                    .setMessageTextColor(Constants.BLACK)
+                    .setBtnTextColor(Constants.WHITE)
+                    .setBtnBackgroundColor(Constants.BLUE)
+                    .build()
+                cleverTapDefaultInstance!!.promptPushPrimer(builder)
+            }
+            else{
+                setupPushNotifications()
+            }
+        }
+        catch (e:java.lang.Exception){
+            e.printStackTrace()
+        }
+    }
+
 
     private fun setMultiInstanceEnvironment() {
         try{
@@ -455,14 +493,9 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
             msg!!.text = i.message
 
             downloadOnlineImageForImageview(i.media, imageMain!!)
-
             downloadOnlineImageForImageview(i.icon, imageIcon!!)
-
-
             //Notification Viewed Event
-
             CleverTapAPI.getDefaultInstance(this)!!.pushDisplayUnitViewedEventForID(unit.unitID)
-
             //Notification Clicked Event
             card_basic!!.setOnClickListener(View.OnClickListener {
                 CleverTapAPI.getDefaultInstance(
@@ -481,10 +514,6 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                 Toast.makeText(this,carddata.getString("messagebody"),Toast.LENGTH_SHORT).show()
             }
         }
-
-
-
-
     }
 
     fun downloadOnlineImageForImageview(url : String, imageV : AppCompatImageView){
@@ -599,5 +628,28 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         }
     }
 
+
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("MainActivity- onPause","In-App rendered")
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+
+    }
+
+    override fun onPushPermissionResponse(accepted: Boolean) {
+        Log.i("MainActivity", "onPushPermissionResponse :  InApp---> response() called accepted=$accepted")
+        if (accepted) {
+            setupPushNotifications()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cleverTapDefaultInstance?.unregisterPushPermissionNotificationResponseListener(this)
+    }
 
 }

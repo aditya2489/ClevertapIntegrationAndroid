@@ -74,11 +74,11 @@ public class MYFCM extends FirebaseMessagingService {
 
                     .setSmallIcon(R.drawable.btn_ripple_background)  //a resource for your custom small icon
                     .setColor(Color.YELLOW) //small ic6on bg color
-                    .setContentTitle(message.getNotification().getTitle()) //the "title" value you sent in your notification
-                    .setContentText(message.getNotification().getBody()) //ditto
+                    .setContentTitle(message.getNotification().getTitle())
+                    .setContentText(message.getNotification().getBody())
                     .setAutoCancel(true);  //dismisses the notification on click
 
-            notificationManager.notify(notificationId /* ID of notification */, notificationBuilder.build());
+            notificationManager.notify(notificationId, notificationBuilder.build());
         }
         else
         {
@@ -88,14 +88,14 @@ public class MYFCM extends FirebaseMessagingService {
             Log.d("CT data", "CT raw: " + message);
             Log.d("CT data", "CT json: " + new Gson().toJson(message));   // to print payload
 
-            Log.d("EXTRAS", "EXTRAS: "+extras);
+            Log.d("EXTRAS", "EXTRAS: "+extras.toString());
 
             CleverTapAPI.processPushNotification(getApplicationContext(),extras);
             //boolean status=new CTFcmMessageHandler().createNotification(getApplicationContext(), message);
 
-//            CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
-            // CleverTapAPI.getDefaultInstance(this).pushNotificationClickedEvent(extras);
-          /*NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+           CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
+
+           NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                //  custom rendering
                 int notificationId = new Random().nextInt(60000);
                 Intent intent = new Intent();
@@ -107,14 +107,15 @@ public class MYFCM extends FirebaseMessagingService {
                  PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_MUTABLE);
                 NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "ch111")
 
-                        .setSmallIcon(R.drawable.ct_volume_on)  //a resource for your custom small icon
+                        .setSmallIcon(R.drawable.ic_launcher_foreground)  //a resource for your custom small icon
                         .setColor(Color.YELLOW)
                         .setContentTitle(extras.getString("nm"))
                         .setContentText(extras.getString("nt"))
                         .setContentIntent(pendingIntent)
                         .setAutoCancel(true);
 
-                notificationManager.notify(notificationId , notificationBuilder.build());*/
+                notificationManager.notify(notificationId , notificationBuilder.build());
+
         }
     }
 

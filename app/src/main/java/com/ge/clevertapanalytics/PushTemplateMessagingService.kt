@@ -7,14 +7,19 @@ import com.clevertap.android.sdk.pushnotification.fcm.CTFcmMessageHandler
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.google.gson.Gson
+import java.lang.Exception
 
 class PushTemplateMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        Log.d(this.javaClass.name,message.toString())
-        CTFcmMessageHandler()
-            .createNotification(applicationContext, message)
-
+        try {
+            Log.d(this.javaClass.name, message.toString())
+            CTFcmMessageHandler()
+                .createNotification(applicationContext, message)
+        }
+        catch (e:Exception){
+            e.printStackTrace()
+        }
         /*Log.d("PushTemplateMessagingService", "CT json: " + Gson().toJson(message))
         val extras = Bundle()
         if (message.data.isNotEmpty()) {

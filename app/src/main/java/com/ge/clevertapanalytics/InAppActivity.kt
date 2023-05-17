@@ -96,7 +96,6 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
 
                     val carddata = JSONObject(k.value)
                     sliderDataArrayList.add(SliderData(carddata.getString("messagebody")))
-
             }
         }
         //CleverTapAPI.getDefaultInstance(this).pushDisplayUnitViewedEventForID(units.get(1).getUnitID());

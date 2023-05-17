@@ -14,16 +14,19 @@ import com.clevertap.android.pushtemplates.PushTemplateNotificationHandler;
 import com.clevertap.android.sdk.ActivityLifecycleCallback;
 import com.clevertap.android.sdk.CleverTapAPI;
 import com.clevertap.android.sdk.interfaces.NotificationHandler;
+import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener;
 import com.clevertap.android.sdk.pushnotification.amp.CTPushAmpListener;
 import com.segment.analytics.Analytics;
 import com.segment.analytics.android.integrations.clevertap.CleverTapIntegration;
 
+import java.util.HashMap;
+
 @SuppressWarnings({"unused"})
-public class PushTemplateHandler extends android.app.Application  implements CTPushAmpListener {
+public class PushTemplateHandler extends android.app.Application  implements CTPushAmpListener, CTPushNotificationListener {
 
     private CleverTapAPI cleverTapDefaultInstance;
     private static final String TAG = String.format("%s.%s", "CLEVERTAP", PushTemplateHandler.class.getName());
-    private static final String WRITE_KEY = "rFIA1p2jpYonQcHsXnGtbrCRYN5289i6"; //This you will receive under source in segment.
+    private static final String WRITE_KEY = GeneralConstants.SEGMENT_WRITE_KEY; //This you will receive under source in segment.
     private static final String CLEVERTAP_KEY = "CleverTap";
     public static boolean sCleverTapSegmentEnabled = false;
     private static Handler handler = null;
@@ -34,7 +37,7 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         CleverTapAPI cleverTapAPI = CleverTapAPI.getDefaultInstance(getApplicationContext());
         assert cleverTapAPI != null;
         cleverTapAPI.setCTPushAmpListener(this);
-        CleverTapAPI.setNotificationHandler((NotificationHandler)new PushTemplateNotificationHandler());
+        CleverTapAPI.setNotificationHandler(new PushTemplateNotificationHandler());
         //ActivityLifecycleCallback.register(this);
 
         setActivitycallbacks();
@@ -135,5 +138,12 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         instance.enablePersonalization();
         sCleverTapSegmentEnabled = true;
         cleverTapDefaultInstance = instance;
+    }
+
+    @Override
+    public void onNotificationClickedPayloadReceived(HashMap<String, Object> payload) {
+        Log.d("PushTemplateHandler---",""+payload);
+
+        //CleverTapAPI.getDefaultInstance(this).pushNotificationClickedEvent(payload);
     }
 }
