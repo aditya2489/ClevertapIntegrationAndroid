@@ -28,7 +28,6 @@ import com.clevertap.android.pushtemplates.TemplateRenderer
 import com.clevertap.android.sdk.*
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
-import com.clevertap.android.sdk.inapp.CTLocalInApp
 import com.clevertap.android.sdk.inbox.CTInboxMessage
 import com.segment.analytics.Analytics
 import org.json.JSONArray
@@ -43,7 +42,7 @@ import com.segment.analytics.Properties;
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
 InboxMessageListener,
-    InboxMessageButtonListener, DisplayUnitListener ,CompoundButton.OnCheckedChangeListener,PushPermissionResponseListener{
+    InboxMessageButtonListener, DisplayUnitListener ,CompoundButton.OnCheckedChangeListener{
     var eventButton: AppCompatButton? = null
     var profilePushButton: AppCompatButton? = null
     var cleverTapDefaultInstance: CleverTapAPI? = null
@@ -120,12 +119,10 @@ InboxMessageListener,
         optin!!.setOnCheckedChangeListener(this)
         offline!!.setOnCheckedChangeListener(this)
         cleverTapDefaultInstance = (this.application as PushTemplateHandler).ctInstance
-        cleverTapDefaultInstance?.registerPushPermissionNotificationResponseListener(this)
-        getPushPermission()
         initializeCleverTapSDK()
         initializeNativeDisplay()
         initialiseAppInBox()
-        //setupPushNotifications()
+        setupPushNotifications()
         setPushTemplateJson()
         //setMultiInstanceEnvironment()
         eventButton!!.setOnClickListener {
@@ -224,36 +221,6 @@ InboxMessageListener,
 
         bounded!!.setOnClickListener {
             sendBoundedEvents()
-        }
-    }
-
-    @SuppressLint("RestrictedApi")
-    private fun getPushPermission() {
-        try {
-            if(!cleverTapDefaultInstance!!.isPushPermissionGranted){
-                cleverTapDefaultInstance!!.promptForPushPermission(true)
-                val builder = CTLocalInApp.builder()
-                    .setInAppType(CTLocalInApp.InAppType.HALF_INTERSTITIAL)
-                    .setTitleText("Get Notified")
-                    .setMessageText("Please enable notifications on your device to use Push Notifications.")
-                    .followDeviceOrientation(true)
-                    .setPositiveBtnText("Allow")
-                    .setNegativeBtnText("Cancel")
-                    .setBackgroundColor(Constants.WHITE)
-                    .setBtnBorderColor(Constants.BLUE)
-                    .setTitleTextColor(Constants.BLUE)
-                    .setMessageTextColor(Constants.BLACK)
-                    .setBtnTextColor(Constants.WHITE)
-                    .setBtnBackgroundColor(Constants.BLUE)
-                    .build()
-                cleverTapDefaultInstance!!.promptPushPrimer(builder)
-            }
-            else{
-                setupPushNotifications()
-            }
-        }
-        catch (e:java.lang.Exception){
-            e.printStackTrace()
         }
     }
 
@@ -640,16 +607,7 @@ InboxMessageListener,
 
     }
 
-    override fun onPushPermissionResponse(accepted: Boolean) {
-        Log.i("MainActivity", "onPushPermissionResponse :  InApp---> response() called accepted=$accepted")
-        if (accepted) {
-            setupPushNotifications()
-        }
-    }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        cleverTapDefaultInstance?.unregisterPushPermissionNotificationResponseListener(this)
-    }
+    
 
 }
