@@ -20,6 +20,7 @@ class PushTemplateMessagingService : FirebaseMessagingService() {
         catch (e:Exception){
             e.printStackTrace()
         }
+
         /*Log.d("PushTemplateMessagingService", "CT json: " + Gson().toJson(message))
         val extras = Bundle()
         if (message.data.isNotEmpty()) {
@@ -30,4 +31,5 @@ class PushTemplateMessagingService : FirebaseMessagingService() {
         //CleverTapAPI.processPushNotification(applicationContext, extras)
         CleverTapAPI.createNotification(applicationContext,extras)*/
     }
+
 }

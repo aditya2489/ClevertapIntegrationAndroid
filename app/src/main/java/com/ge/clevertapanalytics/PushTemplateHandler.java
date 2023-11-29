@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,6 +17,7 @@ import com.clevertap.android.sdk.CleverTapAPI;
 import com.clevertap.android.sdk.interfaces.NotificationHandler;
 import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener;
 import com.clevertap.android.sdk.pushnotification.amp.CTPushAmpListener;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.segment.analytics.Analytics;
 import com.segment.analytics.android.integrations.clevertap.CleverTapIntegration;
 
@@ -25,6 +27,8 @@ import java.util.HashMap;
 public class PushTemplateHandler extends android.app.Application  implements CTPushAmpListener, CTPushNotificationListener {
 
     private CleverTapAPI cleverTapDefaultInstance;
+
+    public FirebaseAnalytics defaultFirebaseAnalytics;
     private static final String TAG = String.format("%s.%s", "CLEVERTAP", PushTemplateHandler.class.getName());
     private static final String WRITE_KEY = GeneralConstants.SEGMENT_WRITE_KEY; //This you will receive under source in segment.
     private static final String CLEVERTAP_KEY = "CleverTap";
@@ -38,6 +42,7 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         assert cleverTapAPI != null;
         cleverTapAPI.setCTPushAmpListener(this);
         CleverTapAPI.setNotificationHandler(new PushTemplateNotificationHandler());
+
         //ActivityLifecycleCallback.register(this);
 
         setActivitycallbacks();

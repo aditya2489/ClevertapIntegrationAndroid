@@ -87,19 +87,15 @@ public class MYFCM extends FirebaseMessagingService {
             //  CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
             Log.d("CT data", "CT raw: " + message);
             Log.d("CT data", "CT json: " + new Gson().toJson(message));   // to print payload
-
             Log.d("EXTRAS", "EXTRAS: "+extras.toString());
 
             CleverTapAPI.processPushNotification(getApplicationContext(),extras);
             //boolean status=new CTFcmMessageHandler().createNotification(getApplicationContext(), message);
-
            CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
-
            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                //  custom rendering
                 int notificationId = new Random().nextInt(60000);
                 Intent intent = new Intent();
-
                 intent.setAction(Intent.ACTION_VIEW);
                // intent.setData(Uri.parse(extras.getString("wzrk_dl")));
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

@@ -2,8 +2,11 @@ package com.ge.clevertapanalytics
 
 //import com.clevertap.android.pushtemplates.TemplateRenderer
 
-import android.annotation.SuppressLint
+import android.Manifest
+import android.app.AlertDialog
 import android.app.NotificationManager
+import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -11,12 +14,18 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.CompoundButton
+import android.widget.EditText
+import android.widget.RelativeLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatImageView
@@ -24,25 +33,46 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.clevertap.android.geofence.CTGeofenceAPI
+import com.clevertap.android.geofence.CTGeofenceSettings
+import com.clevertap.android.geofence.Logger
+import com.clevertap.android.geofence.interfaces.CTGeofenceEventsListener
+import com.clevertap.android.geofence.interfaces.CTLocationUpdatesListener
 import com.clevertap.android.pushtemplates.TemplateRenderer
-import com.clevertap.android.sdk.*
+import com.clevertap.android.sdk.CTInboxListener
+import com.clevertap.android.sdk.CleverTapAPI
+import com.clevertap.android.sdk.CleverTapInstanceConfig
+import com.clevertap.android.sdk.InAppNotificationButtonListener
+import com.clevertap.android.sdk.InboxMessageButtonListener
+import com.clevertap.android.sdk.InboxMessageListener
+import com.clevertap.android.sdk.PushPermissionResponseListener
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
+import com.clevertap.android.sdk.inapp.CTLocalInApp
 import com.clevertap.android.sdk.inbox.CTInboxMessage
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.segment.analytics.Analytics
+import com.segment.analytics.Properties
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
-import com.segment.analytics.Properties;
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
-InboxMessageListener,
-    InboxMessageButtonListener, DisplayUnitListener ,CompoundButton.OnCheckedChangeListener{
+    InboxMessageListener,
+    InboxMessageButtonListener, DisplayUnitListener, CompoundButton.OnCheckedChangeListener,
+    CTLocationUpdatesListener, CTGeofenceAPI.OnGeofenceApiInitializedListener,
+    CTGeofenceEventsListener,
+    PushPermissionResponseListener {
+
+    private val MY_PERMISSIONS_REQUEST_LOCATION = 99
+    private val MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION = 66
+    var defaultFirebaseAnalytics: FirebaseAnalytics? = null
     var eventButton: AppCompatButton? = null
     var profilePushButton: AppCompatButton? = null
     var cleverTapDefaultInstance: CleverTapAPI? = null
@@ -75,20 +105,20 @@ InboxMessageListener,
     var imageMain: AppCompatImageView? = null
     var imageIcon: AppCompatImageView? = null
 
-    var ll : RelativeLayout? = null
+    var ll: RelativeLayout? = null
     val handler = Handler(Looper.getMainLooper())
 
-    var edtphone : EditText? = null
-    var edtemail : EditText? = null
-    var edtid : EditText? = null
+    var edtphone: EditText? = null
+    var edtemail: EditText? = null
+    var edtid: EditText? = null
 
-    var optin : SwitchCompat? = null
-    var offline : SwitchCompat? = null
+    var optin: SwitchCompat? = null
+    var offline: SwitchCompat? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         eventButton = findViewById(R.id.eventButton)
         profilePushButton = findViewById(R.id.profilePushButton)
         inAppButton = findViewById(R.id.inAppButton)
@@ -119,15 +149,17 @@ InboxMessageListener,
         optin!!.setOnCheckedChangeListener(this)
         offline!!.setOnCheckedChangeListener(this)
         cleverTapDefaultInstance = (this.application as PushTemplateHandler).ctInstance
+        checkLocationPermission()
         initializeCleverTapSDK()
         initializeNativeDisplay()
         initialiseAppInBox()
-        setupPushNotifications()
         setPushTemplateJson()
+        setFirebaseInstance()
         //setMultiInstanceEnvironment()
         eventButton!!.setOnClickListener {
             //createEvent()
             updateProfileEmail()
+            //createFBEvent()
         }
         profilePushButton!!.setOnClickListener {
             userProfilePush()
@@ -148,15 +180,17 @@ InboxMessageListener,
             Analytics.with(applicationContext)
 
             Analytics.with(applicationContext).track(
-                "SEG-ShowPush", Properties().putValue("value", "testValue").putValue("testDate", Date(System.currentTimeMillis()))
+                "SEG-ShowPush",
+                Properties().putValue("value", "testValue")
+                    .putValue("testDate", Date(System.currentTimeMillis()))
             )
             //cleverTapDefaultInstance!!.pushEvent("DateCheck")
         }
-        appInboxButton!!.setOnClickListener(View.OnClickListener {
+        appInboxButton!!.setOnClickListener {
 
             cleverTapDefaultInstance!!.showAppInbox()
             cleverTapDefaultInstance!!.allInboxMessages
-        })
+        }
         getAppInboxMessage!!.setOnClickListener {
             cleverTapDefaultInstance!!.pushEvent("GetInboxMessage")
             //cleverTapDefaultInstance!!.pushEvent("BoundedEvent1")
@@ -185,14 +219,12 @@ InboxMessageListener,
         addedToCartButton!!.setOnClickListener {
             try {
                 val addedToCartAction: HashMap<String, Any> = HashMap<String, Any>()
-                var id = randomProductIdGenerate()
+                val id = randomProductIdGenerate()
                 cartProductList.add(id.toString())
-                addedToCartAction.put("ProductID", id)
-                addedToCartAction.put(
-                    "ProductImage",
+                addedToCartAction["ProductID"] = id
+                addedToCartAction["ProductImage"] =
                     "https://d35fo82fjcw0y8.cloudfront.net/2018/07/26020307/customer-success-clevertap.jpg"
-                )
-                addedToCartAction.put("ProductName", randomStringByKotlinRandom())
+                addedToCartAction["ProductName"] = randomStringByKotlinRandom()
                 cleverTapDefaultInstance!!.pushEvent("AddedToCart", addedToCartAction)
                 //updateProfileEmail()
             } catch (e: Exception) {
@@ -210,12 +242,17 @@ InboxMessageListener,
         }
 
         addCart!!.setOnClickListener {
-            addMultipleProductIds()
+            //addMultipleProductIds()
+            try {
+                CTGeofenceAPI.getInstance(applicationContext).triggerLocation()
+            } catch (e: Exception) {
+
+            }
         }
 
         clearCart!!.setOnClickListener {
             //clearCart()
-            startActivity( Intent(applicationContext,InAppActivity::class.java))
+            startActivity(Intent(applicationContext, InAppActivity::class.java))
             //createEvent()
         }
 
@@ -225,8 +262,55 @@ InboxMessageListener,
     }
 
 
+    override fun onResume() {
+        super.onResume()
+        initialiseGeofenceSDK()
+        //checkAndRequestPushPermission()
+    }
+
+    private fun checkAndRequestPushPermission() {
+
+        if (null != cleverTapDefaultInstance) {
+            if (cleverTapDefaultInstance!!.isPushPermissionGranted) {
+                setupPushNotifications()
+            } else {
+                val builder = CTLocalInApp.builder()
+                    .setInAppType(CTLocalInApp.InAppType.ALERT)
+                    .setTitleText("Get Notified")
+                    .setMessageText("Enable Notification permission")
+                    .followDeviceOrientation(true)
+                    .setPositiveBtnText("Allow")
+                    .setNegativeBtnText("Cancel")
+                    .build()
+                cleverTapDefaultInstance!!.promptPushPrimer(builder)
+            }
+        }
+    }
+
+    private fun setFirebaseInstance() {
+        try {
+            defaultFirebaseAnalytics = FirebaseAnalytics.getInstance(this)
+        } catch (e: java.lang.Exception) {
+            Toast.makeText(this, "Firebase Initialisation failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun createFBEvent() {
+
+        try {
+            val parameters = Bundle()
+            parameters.putString("product", "test")
+            parameters.putString("rate", "78")
+
+            defaultFirebaseAnalytics!!.logEvent("TestEvent", parameters)
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
     private fun setMultiInstanceEnvironment() {
-        try{
+        try {
             val clevertapAdditionalInstanceConfig = CleverTapInstanceConfig.createInstance(
                 this,
                 "TEST-5WK-87Z-666Z",
@@ -234,17 +318,17 @@ InboxMessageListener,
             )
             clevertapAdditionalInstanceConfig.setDebugLevel(CleverTapAPI.LogLevel.DEBUG); // default is CleverTapAPI.LogLevel.INFO
 
-            clevertapAdditionalInstanceConfig.isAnalyticsOnly = true; // disables the user engagement features of the instance, default is false
+            clevertapAdditionalInstanceConfig.isAnalyticsOnly =
+                true; // disables the user engagement features of the instance, default is false
 
             clevertapAdditionalInstanceConfig.useGoogleAdId(false); // enables the collection of the Google ADID by the instance, default is false
 
             clevertapAdditionalInstanceConfig.enablePersonalization(false); //enables personalization, default is true.
 
             val clevertapAdditionalInstance: CleverTapAPI =
-                CleverTapAPI.instanceWithConfig(this,clevertapAdditionalInstanceConfig)
-        }
-        catch (e:java.lang.Exception){
-            Log.d("Exception : ",e.message!!)
+                CleverTapAPI.instanceWithConfig(this, clevertapAdditionalInstanceConfig)
+        } catch (e: java.lang.Exception) {
+            Log.d("Exception : ", e.message!!)
         }
 
     }
@@ -255,8 +339,8 @@ InboxMessageListener,
         //cleverTapDefaultInstance!!.pushEvent("BoundedEventQualify")
     }
 
-    val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
-    fun randomStringByKotlinRandom() = (1..6)
+    private val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+    private fun randomStringByKotlinRandom() = (1..6)
         .map { kotlin.random.Random.nextInt(0, charPool.size).let { charPool[it] } }
         .joinToString("")
 
@@ -292,7 +376,7 @@ InboxMessageListener,
         return try {
             val randomId = (0..5).random()
             randomId
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             0
         }
     }
@@ -301,7 +385,7 @@ InboxMessageListener,
         return try {
             val randomId = (1..70).random()
             randomId
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             1
         }
     }
@@ -357,6 +441,7 @@ InboxMessageListener,
             cleverTapDefaultInstance!!.enableDeviceNetworkInfoReporting(true);
             cleverTapDefaultInstance!!.setInAppNotificationButtonListener(this);
             cleverTapDefaultInstance!!.enablePersonalization()
+            cleverTapDefaultInstance!!.registerPushPermissionNotificationResponseListener(this)
             TemplateRenderer.debugLevel = 3
 
         } catch (e: Exception) {
@@ -364,14 +449,49 @@ InboxMessageListener,
         }
     }
 
+    private fun initialiseGeofenceSDK() {
+        try {
+            var ctGeofenceSettings = CTGeofenceSettings.Builder()
+                .enableBackgroundLocationUpdates(true)//boolean to enable background location updates
+                .setLogLevel(Logger.VERBOSE)//Log Level
+                .setLocationAccuracy(CTGeofenceSettings.ACCURACY_HIGH)//byte value for Location Accuracy
+                .setLocationFetchMode(CTGeofenceSettings.FETCH_CURRENT_LOCATION_PERIODIC)//byte value for Fetch Mode
+                .setGeofenceMonitoringCount(100)//int value for number of Geofences CleverTap can monitor
+                .setInterval(10000)//long value for interval in milliseconds
+                .setFastestInterval(5000)//long value for fastest interval in milliseconds
+                .setSmallestDisplacement(0.3f)//float value for smallest Displacement in meters
+                .setGeofenceNotificationResponsiveness(5000)// int value for geofence notification responsiveness in milliseconds
+                .build()
+
+            CTGeofenceAPI.getInstance(this).init(ctGeofenceSettings, cleverTapDefaultInstance!!)
+
+            CTGeofenceAPI.getInstance(this)
+                .setOnGeofenceApiInitializedListener {
+                    Log.d("setOnGeofenceApiInitializedListener", "Geofence API initialised")
+                }
+
+            try {
+                CTGeofenceAPI.getInstance(this).triggerLocation()
+            } catch (e: Exception) {
+                Log.e("clevertap Exception.triggerLocation", "=$e")
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
     private fun createEvent() {
         try {
             val prodViewedAction: HashMap<String, Any> = HashMap<String, Any>()
-            prodViewedAction.put("Prod ID", 1)
-
+            prodViewedAction["Prod ID"] = 1
             cleverTapDefaultInstance!!.pushEvent("DateCheck", prodViewedAction)
-
-            Toast.makeText(applicationContext, cleverTapDefaultInstance!!.getProperty("Customer Type") as String, Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                applicationContext,
+                cleverTapDefaultInstance!!.getProperty("Customer Type") as String,
+                Toast.LENGTH_SHORT
+            ).show()
             //startActivity( Intent(applicationContext,InAppActivity::class.java))
             //updateProfileEmail()
         } catch (e: Exception) {
@@ -382,7 +502,7 @@ InboxMessageListener,
     private fun updateProfileEmail() {
         try {
             val profileUpdate = HashMap<String, Any>()
-            profileUpdate["Name"] = "Aditya"
+            profileUpdate["Name"] = "Jim"
             profileUpdate["Identity"] = edtid!!.text.toString()
             profileUpdate["Email"] = edtemail!!.text.toString()
             profileUpdate["Gender"] = "M"
@@ -392,10 +512,10 @@ InboxMessageListener,
             //location.latitude = 19.155148
             //location.longitude = 72.867851
             //cleverTapDefaultInstance!!.location = location
-            profileUpdate.put("MSG-whatsapp", true)
-            profileUpdate.put("MSG-push", true)
-            profileUpdate.put("MSG-sms", true)
-            profileUpdate.put("MSG-email", true)
+            profileUpdate["MSG-whatsapp"] = true
+            profileUpdate["MSG-push"] = true
+            profileUpdate["MSG-sms"] = true
+            profileUpdate["MSG-email"] = true
             cleverTapDefaultInstance!!.onUserLogin(profileUpdate)
         } catch (e: Exception) {
             Toast.makeText(this, R.string.profile_update_failed, Toast.LENGTH_SHORT).show()
@@ -406,6 +526,7 @@ InboxMessageListener,
     private fun userProfilePush() {
         val profileUpdate = HashMap<String, Any>()
         profileUpdate["Customer Type"] = "Silver"
+        profileUpdate["uptest"] = "Yes"
         profileUpdate["Preferred Language"] = "English"
         //profileUpdate["Email"] = "aditya.waghdhare@clevertap.com"
         profileUpdate["region"] = "India"
@@ -414,16 +535,16 @@ InboxMessageListener,
 
     override fun onInAppButtonClick(payload: HashMap<String, String>?) {
         try {
+            Log.d("ButtonClick", payload.toString())
             Toast.makeText(this, "Dismiss", Toast.LENGTH_SHORT).show()
-        } catch (e: java.lang.Exception) {
-
+        } catch (e: Exception) {
         }
     }
 
     override fun inboxDidInitialize() {
         try {
             Toast.makeText(this, "Called inboxDidInitialize", Toast.LENGTH_SHORT).show()
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
 
         }
     }
@@ -431,7 +552,7 @@ InboxMessageListener,
     override fun inboxMessagesDidUpdate() {
         try {
             Toast.makeText(this, "Called inboxMessagesDidUpdate", Toast.LENGTH_SHORT).show()
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
 
         }
 
@@ -471,19 +592,19 @@ InboxMessageListener,
             })
         }
 
-        for(i in unit.customExtras){
-            if(i.key.equals("Bgimage")){
+        for (i in unit.customExtras) {
+            if (i.key.equals("Bgimage")) {
                 ll?.let { downloadOnlineImage(i.value, it) }
             }
-            if(i.key.equals("cardone")){
+            if (i.key.equals("cardone")) {
 
                 val carddata = JSONObject(i.value)
-                Toast.makeText(this,carddata.getString("messagebody"),Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, carddata.getString("messagebody"), Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun downloadOnlineImageForImageview(url : String, imageV : AppCompatImageView){
+    private fun downloadOnlineImageForImageview(url: String, imageV: AppCompatImageView) {
         executor.execute {
 
             // Image URL
@@ -493,7 +614,7 @@ InboxMessageListener,
             // with the help of Handler
             try {
                 val `in` = java.net.URL(imageURL).openStream()
-                var imageOnline : Bitmap = BitmapFactory.decodeStream(`in`)
+                var imageOnline: Bitmap = BitmapFactory.decodeStream(`in`)
 
                 // Only for making changes in UI
                 handler.post {
@@ -509,7 +630,7 @@ InboxMessageListener,
         }
     }
 
-    fun downloadOnlineImage(url : String, imageV : View){
+    private fun downloadOnlineImage(url: String, imageV: View) {
         executor.execute {
 
             // Image URL
@@ -536,13 +657,13 @@ InboxMessageListener,
         }
     }
 
-    fun addMultipleProductIds() {
+    private fun addMultipleProductIds() {
         cleverTapDefaultInstance!!.addMultiValueForKey(
             "CTS",
             randomProductIdGenerate().toString()
         )
         //cleverTapDefaultInstance!!.addMultiValuesForKey("cart_product_ids",cartProductList)
-            //cleverTapDefaultInstance!!.addMultiValueForKey("cart_product_ids", "P01112")
+        //cleverTapDefaultInstance!!.addMultiValueForKey("cart_product_ids", "P01112")
     }
 
     private fun clearCart() {
@@ -575,7 +696,7 @@ InboxMessageListener,
         return null
     }*/
 
-    fun convertToDate(format: String,currdate : String): Date? {
+    fun convertToDate(format: String, currdate: String): Date? {
         if (currdate.isEmpty())
             return null
         val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy", Locale.ENGLISH)
@@ -584,9 +705,6 @@ InboxMessageListener,
         return Date.from(dateTime)
     }
 
-    override fun onInboxItemClicked(message: CTInboxMessage?) {
-
-    }
 
     override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
         when (buttonView!!.id) {
@@ -596,10 +714,10 @@ InboxMessageListener,
     }
 
 
-
     override fun onPause() {
         super.onPause()
-        Log.d("MainActivity- onPause","In-App rendered")
+        Log.d("MainActivity- onPause", "In-App rendered")
+        //CTGeofenceAPI.getInstance(applicationContext).deactivate()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -607,7 +725,211 @@ InboxMessageListener,
 
     }
 
+    override fun onLocationUpdates(location: Location?) {
+        try {
+            Log.d(
+                "Location Updated : ",
+                location!!.latitude.toString() + " , " + location!!.longitude.toString()
+            )
 
-    
+        } catch (e: Exception) {
+            Log.d("Exception : ", e.localizedMessage)
+        }
+    }
+
+
+    override fun onGeofenceEnteredEvent(geofenceEnteredEventProperties: JSONObject?) {
+        try {
+            Log.d(
+                "Geofence Entered",
+                geofenceEnteredEventProperties!!.getString("gcName") + " : " + geofenceEnteredEventProperties!!.getString(
+                    "triggered_lat"
+                ) + " , " + geofenceEnteredEventProperties!!.getString("triggered_lng")
+            )
+        } catch (e: Exception) {
+            Log.d("Exception : ", e.localizedMessage)
+        }
+    }
+
+    override fun onGeofenceExitedEvent(geofenceExitedEventProperties: JSONObject?) {
+        try {
+            Log.d(
+                "Geofence Entered",
+                geofenceExitedEventProperties!!.getString("gcName") + " : " + geofenceExitedEventProperties!!.getString(
+                    "triggered_lat"
+                ) + " , " + geofenceExitedEventProperties!!.getString("triggered_lng")
+            )
+        } catch (e: Exception) {
+            Log.d("Exception : ", e.localizedMessage)
+        }
+    }
+
+
+    private fun checkLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            ) {
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                AlertDialog.Builder(this)
+                    .setTitle("Location Permission Needed")
+                    .setMessage("This app needs the Location permission, please accept to use location functionality")
+                    .setPositiveButton(
+                        "OK"
+                    ) { _, _ ->
+                        //Prompt the user once explanation has been shown
+                        requestLocationPermission()
+                    }
+                    .create()
+                    .show()
+            } else {
+                // No explanation needed, we can request the permission.
+                requestLocationPermission()
+            }
+        } else {
+            checkBackgroundLocation()
+        }
+
+    }
+
+    private fun requestLocationPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ),
+            MY_PERMISSIONS_REQUEST_LOCATION
+        )
+    }
+
+
+    private fun checkBackgroundLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestBackgroundLocationPermission()
+        }
+    }
+
+    private fun requestBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ),
+                MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION
+            )
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                MY_PERMISSIONS_REQUEST_LOCATION
+            )
+        }
+    }
+
+
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            MY_PERMISSIONS_REQUEST_LOCATION -> {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // location-related task you need to do.
+                    if (ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        checkBackgroundLocation()
+                    }
+
+                } else {
+
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show()
+
+                }
+                return
+            }
+            MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION -> {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // location-related task you need to do.
+                    if (ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        Toast.makeText(
+                            this,
+                            "Granted Background Location Permission",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        initialiseGeofenceSDK()
+                    }
+                } else {
+
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show()
+                }
+                return
+
+            }
+        }
+    }
+
+
+    override fun OnGeofenceApiInitialized() {
+        try {
+            Log.d(
+                "clevertap OnGeofenceApiInitialized-",
+                "-----OnGeofenceApiInitialized----="
+            )
+        } catch (e: Exception) {
+
+        }
+    }
+
+    override fun onInboxItemClicked(
+        message: CTInboxMessage?,
+        contentPageIndex: Int,
+        buttonIndex: Int
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onPushPermissionResponse(accepted: Boolean) {
+
+        if (accepted) {
+            setupPushNotifications()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cleverTapDefaultInstance?.unregisterPushPermissionNotificationResponseListener(this)
+    }
+
 
 }
