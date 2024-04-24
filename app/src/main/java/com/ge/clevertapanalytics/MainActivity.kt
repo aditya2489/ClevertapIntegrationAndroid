@@ -3,10 +3,10 @@ package com.ge.clevertapanalytics
 //import com.clevertap.android.pushtemplates.TemplateRenderer
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.NotificationManager
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -25,7 +25,6 @@ import android.widget.EditText
 import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatImageView
@@ -42,15 +41,22 @@ import com.clevertap.android.pushtemplates.TemplateRenderer
 import com.clevertap.android.sdk.CTInboxListener
 import com.clevertap.android.sdk.CleverTapAPI
 import com.clevertap.android.sdk.CleverTapInstanceConfig
+import com.clevertap.android.sdk.Constants
 import com.clevertap.android.sdk.InAppNotificationButtonListener
+import com.clevertap.android.sdk.InAppNotificationListener
 import com.clevertap.android.sdk.InboxMessageButtonListener
 import com.clevertap.android.sdk.InboxMessageListener
 import com.clevertap.android.sdk.PushPermissionResponseListener
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
+import com.clevertap.android.sdk.inapp.CTInAppNotification
 import com.clevertap.android.sdk.inapp.CTLocalInApp
+import com.clevertap.android.sdk.inapp.CTLocalInApp.InAppType
+import com.clevertap.android.sdk.inapp.InAppListener
 import com.clevertap.android.sdk.inbox.CTInboxMessage
+import com.clevertap.android.sdk.response.PushAmpResponse
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.gson.Gson
 import com.segment.analytics.Analytics
 import com.segment.analytics.Properties
 import org.json.JSONArray
@@ -68,7 +74,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     InboxMessageButtonListener, DisplayUnitListener, CompoundButton.OnCheckedChangeListener,
     CTLocationUpdatesListener, CTGeofenceAPI.OnGeofenceApiInitializedListener,
     CTGeofenceEventsListener,
-    PushPermissionResponseListener {
+    PushPermissionResponseListener, InAppListener, InAppNotificationListener {
 
     private val MY_PERMISSIONS_REQUEST_LOCATION = 99
     private val MY_PERMISSIONS_REQUEST_BACKGROUND_LOCATION = 66
@@ -85,7 +91,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     var chargedButton: AppCompatButton? = null
     var addCart: AppCompatButton? = null
     var clearCart: AppCompatButton? = null
-    var bounded: AppCompatButton? = null
+    var notifyMe: AppCompatButton? = null
+    var isPrimerPopupGranted : Boolean = false
 
     var card_basic: CardView? = null
     var text1: TextView? = null
@@ -116,6 +123,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     var offline: SwitchCompat? = null
 
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -130,7 +138,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         addedToCartButton = findViewById(R.id.addToCartButton)
         chargedButton = findViewById(R.id.chargedButton)
         addCart = findViewById(R.id.addCart)
-        bounded = findViewById(R.id.sendBounded)
+        notifyMe = findViewById(R.id.sendBounded)
         imageIcon = findViewById(R.id.iconimage)
         imageIcon = findViewById(R.id.iconimage)
         imageMain = findViewById(R.id.mainimage)
@@ -149,12 +157,13 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         optin!!.setOnCheckedChangeListener(this)
         offline!!.setOnCheckedChangeListener(this)
         cleverTapDefaultInstance = (this.application as PushTemplateHandler).ctInstance
-        checkLocationPermission()
+        //checkLocationPermission()
         initializeCleverTapSDK()
         initializeNativeDisplay()
         initialiseAppInBox()
         setPushTemplateJson()
         setFirebaseInstance()
+
         //setMultiInstanceEnvironment()
         eventButton!!.setOnClickListener {
             //createEvent()
@@ -200,28 +209,29 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
             cleverTapDefaultInstance!!.pushEvent("RequestNativeDisplay")
         }
         pushTemplates!!.setOnClickListener {
-            //val randomId = randomPushTemplateGenerate()
-            //val templateId = idList[randomId]
-            //Log.d("Random Id : ", randomId.toString())
-            //Log.d("Push Template : ", templateId)
-            //val templateJson: String = pushTemplateJsons[templateId] as String
-            //val jObject: JSONObject = JSONObject(templateJson)
-            //Log.d("Push Template Json String: ", templateJson)
-            //val pushTemplateEventParams = HashMap<String, Any>()
-            //pushTemplateEventParams["pt_id"] = templateId
-            //val s = Gson().toJson(jObject)
-            //Log.d("Push Template Json GSON String: ",s)
-            //pushTemplateEventParams["pt_json"] = templateJson
-            //Log.d("Push Template json from map : ",pushTemplateEventParams["pt_json"].toString())
+            val randomId = randomPushTemplateGenerate()
+            val templateId = idList[randomId]
+            Log.d("Random Id : ", randomId.toString())
+            Log.d("Push Template : ", templateId)
+            val templateJson: String = pushTemplateJsons[templateId] as String
+            val jObject = JSONObject(templateJson)
+            Log.d("Push Template Json String: ", templateJson)
+            val pushTemplateEventParams = HashMap<String, Any>()
+            pushTemplateEventParams["pt_id"] = templateId
+            val s = Gson().toJson(jObject)
+            Log.d("Push Template Json GSON String: ",s)
+            pushTemplateEventParams["pt_json"] = templateJson
+            Log.d("Push Template json from map : ",pushTemplateEventParams["pt_json"].toString())
+            //cleverTapDefaultInstance!!.pushEvent("PushTemplates")
             cleverTapDefaultInstance!!.pushEvent("PushTemplates")
         }
-
         addedToCartButton!!.setOnClickListener {
             try {
                 val addedToCartAction: HashMap<String, Any> = HashMap<String, Any>()
                 val id = randomProductIdGenerate()
                 cartProductList.add(id.toString())
                 addedToCartAction["ProductID"] = id
+                addedToCartAction["tst"] = "VENDOR name"
                 addedToCartAction["ProductImage"] =
                     "https://d35fo82fjcw0y8.cloudfront.net/2018/07/26020307/customer-success-clevertap.jpg"
                 addedToCartAction["ProductName"] = randomStringByKotlinRandom()
@@ -242,9 +252,13 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         }
 
         addCart!!.setOnClickListener {
-            //addMultipleProductIds()
             try {
-                CTGeofenceAPI.getInstance(applicationContext).triggerLocation()
+            val notifyMeAction: HashMap<String, Any> = HashMap<String, Any>()
+            notifyMeAction["id"] = "Test_yeteh"
+            notifyMeAction["userId"] = "6"
+            cleverTapDefaultInstance!!.pushEvent("Notification Received",notifyMeAction)
+            //addMultipleProductIds()
+
             } catch (e: Exception) {
 
             }
@@ -256,35 +270,65 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
             //createEvent()
         }
 
-        bounded!!.setOnClickListener {
-            sendBoundedEvents()
+        notifyMe!!.setOnClickListener {
+
+            try {
+                val notifyMeAction: HashMap<String, Any> = HashMap<String, Any>()
+                notifyMeAction["ProductID"] = "P23"
+                notifyMeAction["ProductImage"] = "https://d35fo82fjcw0y8.cloudfront.net/2018/07/26020307/customer-success-clevertap.jpg"
+                notifyMeAction["ProductName"] = "Soy Milk"
+                notifyMeAction["Category"] = "Milk"
+                notifyMeAction["Rate"] = 78
+                cleverTapDefaultInstance!!.pushEvent("Notify Me", notifyMeAction)
+            } catch (e: Exception) {
+                Toast.makeText(this, R.string.event_trigger_failed, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
 
     override fun onResume() {
         super.onResume()
-        initialiseGeofenceSDK()
-        //checkAndRequestPushPermission()
+        checkAndRequestPushPermission()
+        //initialiseGeofenceSDK()
+
     }
 
+    @SuppressLint("RestrictedApi")
     private fun checkAndRequestPushPermission() {
 
-        if (null != cleverTapDefaultInstance) {
-            if (cleverTapDefaultInstance!!.isPushPermissionGranted) {
-                setupPushNotifications()
-            } else {
-                val builder = CTLocalInApp.builder()
-                    .setInAppType(CTLocalInApp.InAppType.ALERT)
-                    .setTitleText("Get Notified")
-                    .setMessageText("Enable Notification permission")
-                    .followDeviceOrientation(true)
-                    .setPositiveBtnText("Allow")
-                    .setNegativeBtnText("Cancel")
-                    .build()
-                cleverTapDefaultInstance!!.promptPushPrimer(builder)
-            }
-        }
+                if (null != cleverTapDefaultInstance) {
+                    if (cleverTapDefaultInstance!!.isPushPermissionGranted) {
+                        setupPushNotifications()
+                    } else {
+                        val builder = CTLocalInApp.builder()
+                            .setInAppType(CTLocalInApp.InAppType.ALERT)
+                            .setTitleText("Get Notified")
+                            .setMessageText("Enable Notification permission")
+                            .followDeviceOrientation(true)
+                            .setPositiveBtnText("Allow")
+                            .setNegativeBtnText("Cancel")
+                            .build()
+                        cleverTapDefaultInstance!!.promptPushPrimer(builder)
+                        /*val jsonObject = CTLocalInApp.builder()
+                            .setInAppType(InAppType.HALF_INTERSTITIAL)
+                            .setTitleText("Get Notified")
+                            .setMessageText("Please enable notifications on your device to use Push Notifications.")
+                            .followDeviceOrientation(true)
+                            .setPositiveBtnText("Allow")
+                            .setNegativeBtnText("Cancel")
+                            .setBackgroundColor(Constants.WHITE)
+                            .setBtnBorderColor(Constants.BLUE)
+                            .setTitleTextColor(Constants.BLUE)
+                            .setMessageTextColor(Constants.BLACK)
+                            .setBtnTextColor(Constants.WHITE)
+                            .setImageUrl("https://icons.iconarchive.com/icons/treetog/junior/64/camera-icon.png")
+                            .setBtnBackgroundColor(Constants.BLUE)
+                            .build()
+                        cleverTapDefaultInstance!!.promptPushPrimer(jsonObject)*/
+                    }
+                }
+
     }
 
     private fun setFirebaseInstance() {
@@ -476,6 +520,24 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                 Log.e("clevertap Exception.triggerLocation", "=$e")
             }
 
+            CTGeofenceAPI.getInstance(this).setCtLocationUpdatesListener {
+                if(it != null) {
+                    Log.d("Location updated", "" + it.latitude + " and " + it.longitude)
+                }
+
+            }
+
+
+            CTGeofenceAPI.getInstance(this).setCtGeofenceEventsListener(object : CTGeofenceEventsListener{
+                override fun onGeofenceEnteredEvent(geofenceEnteredEventProperties: JSONObject?) {
+                    Log.d("Entered Geofence",geofenceEnteredEventProperties.toString())
+                }
+
+                override fun onGeofenceExitedEvent(geofenceExitedEventProperties: JSONObject?) {
+                    Log.d("Exited Geofence",geofenceExitedEventProperties.toString())
+                }
+
+            })
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -525,9 +587,9 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
     private fun userProfilePush() {
         val profileUpdate = HashMap<String, Any>()
-        profileUpdate["Customer Type"] = "Silver"
+        profileUpdate["Customer Type"] = "SILVER"
         profileUpdate["uptest"] = "Yes"
-        profileUpdate["Preferred Language"] = "English"
+        profileUpdate["Preferred Language"] = "ENGLISH"
         //profileUpdate["Email"] = "aditya.waghdhare@clevertap.com"
         profileUpdate["region"] = "India"
         cleverTapDefaultInstance!!.pushProfile(profileUpdate)
@@ -607,23 +669,15 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     private fun downloadOnlineImageForImageview(url: String, imageV: AppCompatImageView) {
         executor.execute {
 
-            // Image URL
             val imageURL = url
-
-            // Tries to get the image and post it in the ImageView
-            // with the help of Handler
             try {
                 val `in` = java.net.URL(imageURL).openStream()
-                var imageOnline: Bitmap = BitmapFactory.decodeStream(`in`)
+                val imageOnline: Bitmap = BitmapFactory.decodeStream(`in`)
 
-                // Only for making changes in UI
                 handler.post {
                     imageV.setImageBitmap(imageOnline)
                 }
             }
-
-            // If the URL does not point to
-            // image or any other kind of failure
             catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -635,22 +689,14 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
             // Image URL
             val imageURL = url
-
-            // Tries to get the image and post it in the ImageView
-            // with the help of Handler
             try {
                 val `in` = java.net.URL(imageURL).openStream()
                 imageOnlineBm = BitmapFactory.decodeStream(`in`)
-
-                // Only for making changes in UI
                 handler.post {
                     val d: Drawable = BitmapDrawable(resources, imageOnlineBm)
                     ll!!.background = d
                 }
             }
-
-            // If the URL doesnot point to
-            // image or any other kind of failure
             catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -680,7 +726,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         Log.d("cart_product_ids---", list.toString())
     }
 
-    /*un convertToDate(format: String): Date? {
+    /*fun convertToDate(format: String): Date? {
         try {
             fun String.convertToDate(format: String): Date? {
                 if (this.isEmpty())
@@ -722,8 +768,10 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-
+        Log.d("MainActivityNewIntent", "-------------------")
     }
+
+
 
     override fun onLocationUpdates(location: Location?) {
         try {
@@ -930,6 +978,47 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         super.onDestroy()
         cleverTapDefaultInstance?.unregisterPushPermissionNotificationResponseListener(this)
     }
+
+    override fun inAppNotificationDidClick(
+        inAppNotification: CTInAppNotification?,
+        formData: Bundle?,
+        keyValueMap: java.util.HashMap<String, String>?
+    ) {
+        Log.d("---- inAppNotificationDidClick ----","")
+    }
+
+    override fun inAppNotificationDidDismiss(
+        context: Context?,
+        inAppNotification: CTInAppNotification?,
+        formData: Bundle?
+    ) {
+        Log.d("---- inAppNotificationDidDismiss ----","")
+    }
+
+    override fun inAppNotificationDidShow(
+        inAppNotification: CTInAppNotification?,
+        formData: Bundle?
+    ) {
+        Log.d("---- inAppNotificationDidShow ----","")
+    }
+
+    override fun beforeShow(extras: MutableMap<String, Any>?): Boolean {
+        Log.d("beforeShow", "Inside")
+        return true
+    }
+
+    override fun onShow(ctInAppNotification: CTInAppNotification?) {
+        Log.d("onShow", "Inside")
+    }
+
+    override fun onDismissed(
+        extras: MutableMap<String, Any>?,
+        actionExtras: MutableMap<String, Any>?
+    ) {
+        Log.d("onDismissed", extras.toString())
+        Log.d("onDismissed", actionExtras.toString())
+    }
+
 
 
 }

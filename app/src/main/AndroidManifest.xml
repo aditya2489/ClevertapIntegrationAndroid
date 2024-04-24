@@ -52,20 +52,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!--
-<meta-data
-            android:name="CLEVERTAP_ACCOUNT_ID"
-            android:value="TEST-5WK-87Z-666Z" />
-        <meta-data
-            android:name="CLEVERTAP_TOKEN"
-            android:value="TEST-1ab-305" />
-        -->
+
         <meta-data
             android:name="CLEVERTAP_ACCOUNT_ID"
             android:value="TEST-5WK-87Z-666Z" />
         <meta-data
             android:name="CLEVERTAP_TOKEN"
             android:value="TEST-1ab-305" />
+        <!--<meta-data
+            android:name="CLEVERTAP_ACCOUNT_ID"
+            android:value="TEST-67Z-45K-876Z" />
+        <meta-data
+            android:name="CLEVERTAP_TOKEN"
+            android:value="TEST-354-1a6" />-->
+
+
         <meta-data
             android:name="CLEVERTAP_USE_GOOGLE_AD_ID"
             android:value="0" />

@@ -1,8 +1,11 @@
 package com.ge.clevertapanalytics;
 
 import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -12,12 +15,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.clevertap.android.pushtemplates.PushTemplateNotificationHandler;
-import com.clevertap.android.sdk.ActivityLifecycleCallback;
 import com.clevertap.android.sdk.CleverTapAPI;
 import com.clevertap.android.sdk.interfaces.NotificationHandler;
 import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener;
 import com.clevertap.android.sdk.pushnotification.amp.CTPushAmpListener;
+import com.clevertap.android.sdk.pushnotification.fcm.CTFcmMessageHandler;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingService;
 import com.segment.analytics.Analytics;
 import com.segment.analytics.android.integrations.clevertap.CleverTapIntegration;
 
@@ -33,18 +40,35 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
     private static final String WRITE_KEY = GeneralConstants.SEGMENT_WRITE_KEY; //This you will receive under source in segment.
     private static final String CLEVERTAP_KEY = "CleverTap";
     public static boolean sCleverTapSegmentEnabled = false;
-    private static Handler handler = null;
+    private static final Handler handler = null;
 
     @Override
     public void onCreate() {
+        CleverTapAPI.createNotificationChannel(getApplicationContext(),"ch111","CT-Push","CT-Push", NotificationManager.IMPORTANCE_MAX,true,"sound2.wav");
         setCTInstance();
         CleverTapAPI cleverTapAPI = CleverTapAPI.getDefaultInstance(getApplicationContext());
         assert cleverTapAPI != null;
         cleverTapAPI.setCTPushAmpListener(this);
-        CleverTapAPI.setNotificationHandler(new PushTemplateNotificationHandler());
+        CleverTapAPI.setNotificationHandler((NotificationHandler)new PushTemplateNotificationHandler());
+
 
         //ActivityLifecycleCallback.register(this);
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(@NonNull Task<String> task) {
+                        if (!task.isSuccessful()) {
+                            Log.w(TAG, "Fetching FCM registration token failed", task.getException());
+                            return;
+                        }
 
+                        // Get new FCM registration token
+                        String token = task.getResult();
+                        cleverTapDefaultInstance.pushFcmRegistrationId(token,true);
+                        // Log and toast
+                        Log.d("----- FCM token -----", token);
+                    }
+                });
         setActivitycallbacks();
         super.onCreate();
         Analytics analytics = new Analytics.Builder(getApplicationContext(), WRITE_KEY)
@@ -69,11 +93,15 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         this.registerActivityLifecycleCallbacks(
                 new android.app.Application.ActivityLifecycleCallbacks() {
 
+
                     @Override
                     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
                         CleverTapAPI.setAppForeground(true);
                         try {
                             CleverTapAPI.getDefaultInstance(PushTemplateHandler.this).pushNotificationClickedEvent(activity.getIntent().getExtras());
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                dismissNotification(activity.getIntent(), PushTemplateHandler.this);
+                            }
                         } catch (Throwable t) {
                             // Ignore
                         }
@@ -124,6 +152,8 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         );
     }
 
+
+
     public CleverTapAPI getCTInstance() {
         return cleverTapDefaultInstance;
     }
@@ -136,6 +166,7 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
     public void onPushAmpPayloadReceived(Bundle extras) {
 
         Log.d("PushTemplateHandler------------", extras.keySet().size()+"");
+        CleverTapAPI.createNotification(getApplicationContext(), extras);
     }
 
     private void cleverTapIntegrationReady(CleverTapAPI instance)
@@ -150,5 +181,21 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         Log.d("PushTemplateHandler---",""+payload);
 
         //CleverTapAPI.getDefaultInstance(this).pushNotificationClickedEvent(payload);
+    }
+
+    public static void dismissNotification( Intent intent, Context applicationContext){
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            String actionId = extras.getString("actionId");
+            if (actionId != null) {
+                boolean autoCancel = extras.getBoolean("autoCancel", true);
+                int notificationId = extras.getInt("notificationId", -1);
+                if (autoCancel && notificationId > -1) {
+                    NotificationManager notifyMgr =
+                            (NotificationManager) applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                    notifyMgr.cancel(notificationId);                }
+
+            }
+        }
     }
 }

@@ -28,7 +28,7 @@ class PushTemplateMessagingService : FirebaseMessagingService() {
                 extras.putString(key, value)
             }
         }
-        //CleverTapAPI.processPushNotification(applicationContext, extras)
+        CleverTapAPI.processPushNotification(applicationContext, extras)
         CleverTapAPI.createNotification(applicationContext,extras)*/
     }
 

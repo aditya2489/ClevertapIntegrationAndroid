@@ -38,13 +38,10 @@ public class MYFCM extends FirebaseMessagingService {
     {
         super.onNewToken(token1);
         Log.d("MY_TOKEN", "Refreshed token: " + token1);
+
+
     }
 
-    //    @Override
-//    public void onReceivePassThroughMessage(Context context, MiPushMessage message) {
-//
-//       new CTXiaomiMessageHandler().createNotification(getApplicationContext(),message);
-//    }
     @Override
     public void onMessageReceived(RemoteMessage message) {
         super.onMessageReceived(message);
@@ -70,7 +67,7 @@ public class MYFCM extends FirebaseMessagingService {
 
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             int notificationId = new Random().nextInt(60000);
-            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "biswa2")
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "ch111")
 
                     .setSmallIcon(R.drawable.btn_ripple_background)  //a resource for your custom small icon
                     .setColor(Color.YELLOW) //small ic6on bg color
@@ -84,14 +81,17 @@ public class MYFCM extends FirebaseMessagingService {
         {
             Log.d("TAG", "from ct");
             // if payload from clevertap
-            //  CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
+            CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
             Log.d("CT data", "CT raw: " + message);
             Log.d("CT data", "CT json: " + new Gson().toJson(message));   // to print payload
-            Log.d("EXTRAS", "EXTRAS: "+extras.toString());
+            Log.d("EXTRAS", "EXTRAS: "+ extras);
 
             CleverTapAPI.processPushNotification(getApplicationContext(),extras);
             //boolean status=new CTFcmMessageHandler().createNotification(getApplicationContext(), message);
-           CleverTapAPI.getDefaultInstance(this).pushNotificationViewedEvent(extras);
+
+            Map<String, Object> myMap = BundleToMap.bundleToMap(extras);
+
+            CleverTapAPI.getDefaultInstance(this).pushEvent("Payload Received", myMap);
            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                //  custom rendering
                 int notificationId = new Random().nextInt(60000);
@@ -105,8 +105,8 @@ public class MYFCM extends FirebaseMessagingService {
 
                         .setSmallIcon(R.drawable.ic_launcher_foreground)  //a resource for your custom small icon
                         .setColor(Color.YELLOW)
-                        .setContentTitle(extras.getString("nm"))
-                        .setContentText(extras.getString("nt"))
+                        .setContentTitle(extras.getString("nt"))
+                        .setContentText(extras.getString("nm"))
                         .setContentIntent(pendingIntent)
                         .setAutoCancel(true);
 

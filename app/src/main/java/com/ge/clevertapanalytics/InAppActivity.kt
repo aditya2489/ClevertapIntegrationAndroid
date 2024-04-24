@@ -1,15 +1,16 @@
 package com.ge.clevertapanalytics
 
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import com.clevertap.android.sdk.CleverTapAPI
 import com.clevertap.android.sdk.InAppNotificationButtonListener
-import com.clevertap.android.sdk.InAppNotificationListener
 import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
 import com.smarteist.autoimageslider.SliderView
@@ -107,6 +108,31 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
         sliderView!!.isAutoCycle = false
         sliderView!!.setOffscreenPageLimit(3)
     }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            cleverTapDefaultInstance?.pushNotificationClickedEvent(intent!!.extras)
+            dismissNotification(intent!!,this)
+        }
+    }
+
+    fun dismissNotification(intent: Intent, applicationContext: Context) {
+        val extras = intent.extras
+        if (extras != null) {
+            val actionId = extras.getString("actionId")
+            if (actionId != null) {
+                val autoCancel = extras.getBoolean("autoCancel", true)
+                val notificationId = extras.getInt("notificationId", -1)
+                if (autoCancel && notificationId > -1) {
+                    val notifyMgr =
+                        applicationContext.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                    notifyMgr.cancel(notificationId)
+                }
+            }
+        }
+    }
+
 
 }
 
