@@ -1,4 +1,9 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+
 buildscript {
     ext.kotlin_version = "1.6.0"
     repositories {
@@ -23,6 +28,3 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
-}

@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.clevertap.android.pushtemplates.PushTemplateNotificationHandler;
+import com.clevertap.android.sdk.ActivityLifecycleCallback;
 import com.clevertap.android.sdk.CleverTapAPI;
 import com.clevertap.android.sdk.interfaces.NotificationHandler;
 import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener;
@@ -29,6 +30,7 @@ import com.segment.analytics.Analytics;
 import com.segment.analytics.android.integrations.clevertap.CleverTapIntegration;
 
 import java.util.HashMap;
+import java.util.Objects;
 
 @SuppressWarnings({"unused"})
 public class PushTemplateHandler extends android.app.Application  implements CTPushAmpListener, CTPushNotificationListener {
@@ -46,13 +48,14 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
     public void onCreate() {
         CleverTapAPI.createNotificationChannel(getApplicationContext(),"ch111","CT-Push","CT-Push", NotificationManager.IMPORTANCE_MAX,true,"sound2.wav");
         setCTInstance();
+        setIdentifierForRTUT();
         CleverTapAPI cleverTapAPI = CleverTapAPI.getDefaultInstance(getApplicationContext());
         assert cleverTapAPI != null;
         cleverTapAPI.setCTPushAmpListener(this);
         CleverTapAPI.setNotificationHandler((NotificationHandler)new PushTemplateNotificationHandler());
 
 
-        //ActivityLifecycleCallback.register(this);
+        ActivityLifecycleCallback.register(this);
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(new OnCompleteListener<String>() {
                     @Override
@@ -88,6 +91,18 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         Analytics.setSingletonInstance(analytics);
 
     }
+
+    private void setIdentifierForRTUT() {
+        try {
+            defaultFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+            Log.d("======== CTid ========",Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this)).getCleverTapID());
+            defaultFirebaseAnalytics.setUserProperty("ct_objectId", Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this)).getCleverTapID());
+        }catch(Exception e)
+        {
+            Log.d("No CTid exception",e.getLocalizedMessage());
+        }
+    }
+
 
     private void setActivitycallbacks() {
         this.registerActivityLifecycleCallbacks(

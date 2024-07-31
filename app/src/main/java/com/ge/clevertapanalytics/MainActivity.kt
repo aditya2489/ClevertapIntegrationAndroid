@@ -1,7 +1,5 @@
 package com.ge.clevertapanalytics
 
-//import com.clevertap.android.pushtemplates.TemplateRenderer
-
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -41,7 +39,6 @@ import com.clevertap.android.pushtemplates.TemplateRenderer
 import com.clevertap.android.sdk.CTInboxListener
 import com.clevertap.android.sdk.CleverTapAPI
 import com.clevertap.android.sdk.CleverTapInstanceConfig
-import com.clevertap.android.sdk.Constants
 import com.clevertap.android.sdk.InAppNotificationButtonListener
 import com.clevertap.android.sdk.InAppNotificationListener
 import com.clevertap.android.sdk.InboxMessageButtonListener
@@ -51,14 +48,13 @@ import com.clevertap.android.sdk.displayunits.DisplayUnitListener
 import com.clevertap.android.sdk.displayunits.model.CleverTapDisplayUnit
 import com.clevertap.android.sdk.inapp.CTInAppNotification
 import com.clevertap.android.sdk.inapp.CTLocalInApp
-import com.clevertap.android.sdk.inapp.CTLocalInApp.InAppType
 import com.clevertap.android.sdk.inapp.InAppListener
 import com.clevertap.android.sdk.inbox.CTInboxMessage
-import com.clevertap.android.sdk.response.PushAmpResponse
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
 import com.segment.analytics.Analytics
 import com.segment.analytics.Properties
+import kotlinx.coroutines.CoroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -66,7 +62,9 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
+import java.util.Objects
 import java.util.concurrent.Executors
+import kotlinx.coroutines.*
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
@@ -206,6 +204,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         }
 
         nativeDisplayButton!!.setOnClickListener {
+            createVW()
             cleverTapDefaultInstance!!.pushEvent("RequestNativeDisplay")
         }
         pushTemplates!!.setOnClickListener {
@@ -231,7 +230,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                 val id = randomProductIdGenerate()
                 cartProductList.add(id.toString())
                 addedToCartAction["ProductID"] = id
-                addedToCartAction["tst"] = "VENDOR name"
+                addedToCartAction["tst"] = "NBC"
                 addedToCartAction["ProductImage"] =
                     "https://d35fo82fjcw0y8.cloudfront.net/2018/07/26020307/customer-success-clevertap.jpg"
                 addedToCartAction["ProductName"] = randomStringByKotlinRandom()
@@ -279,17 +278,25 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                 notifyMeAction["ProductName"] = "Soy Milk"
                 notifyMeAction["Category"] = "Milk"
                 notifyMeAction["Rate"] = 78
+                notifyMeAction["OrderDate"] = Date()
                 cleverTapDefaultInstance!!.pushEvent("Notify Me", notifyMeAction)
             } catch (e: Exception) {
                 Toast.makeText(this, R.string.event_trigger_failed, Toast.LENGTH_SHORT).show()
             }
         }
+        startHandler()
     }
 
+    private fun startHandler() {
+        GlobalScope.launch(Dispatchers.Main) {
+            delay(200)
+            checkAndRequestPushPermission()
+        }
+    }
 
     override fun onResume() {
         super.onResume()
-        checkAndRequestPushPermission()
+
         //initialiseGeofenceSDK()
 
     }
@@ -308,6 +315,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                             .followDeviceOrientation(true)
                             .setPositiveBtnText("Allow")
                             .setNegativeBtnText("Cancel")
+                            .setFallbackToSettings(true)
                             .build()
                         cleverTapDefaultInstance!!.promptPushPrimer(builder)
                         /*val jsonObject = CTLocalInApp.builder()
@@ -334,6 +342,9 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     private fun setFirebaseInstance() {
         try {
             defaultFirebaseAnalytics = FirebaseAnalytics.getInstance(this)
+            defaultFirebaseAnalytics!!.setUserProperty("ct_objectId",
+                Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this))?.cleverTapID
+            );
         } catch (e: java.lang.Exception) {
             Toast.makeText(this, "Firebase Initialisation failed", Toast.LENGTH_SHORT).show()
         }
@@ -347,6 +358,19 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
             parameters.putString("rate", "78")
 
             defaultFirebaseAnalytics!!.logEvent("TestEvent", parameters)
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun createVW() {
+
+        try {
+            val notifyMeAction: HashMap<String, Any> = HashMap<String, Any>()
+            notifyMeAction["VideoName"] = "Cornered Tigers: The 1992 Story - E01"
+            notifyMeAction["VideoID"] = "CT000009"
+
+            cleverTapDefaultInstance!!.pushEvent("Video Watched 2", notifyMeAction)
         } catch (e: java.lang.Exception) {
             e.printStackTrace()
         }
@@ -590,7 +614,9 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         profileUpdate["Customer Type"] = "SILVER"
         profileUpdate["uptest"] = "Yes"
         profileUpdate["Preferred Language"] = "ENGLISH"
-        //profileUpdate["Email"] = "aditya.waghdhare@clevertap.com"
+        profileUpdate["17thmay_payment_link"] = "https://eu.adyen.link/PL4DBE2F5FD58A2CEF"
+        profileUpdate["may17th_payment_link"] = "https://eu.adyen.link/PL4DBE2F5FD58A2CEF"
+        profileUpdate["Email"] = "aditya.waghdhare@clevertap.com"
         profileUpdate["region"] = "India"
         cleverTapDefaultInstance!!.pushProfile(profileUpdate)
     }
@@ -659,9 +685,8 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
                 ll?.let { downloadOnlineImage(i.value, it) }
             }
             if (i.key.equals("cardone")) {
-
                 val carddata = JSONObject(i.value)
-                Toast.makeText(this, carddata.getString("messagebody"), Toast.LENGTH_SHORT).show()
+                ll?.let { downloadOnlineImage(carddata.getString("Bgimage"), it) }
             }
         }
     }
@@ -964,7 +989,7 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         contentPageIndex: Int,
         buttonIndex: Int
     ) {
-        TODO("Not yet implemented")
+        Log.d("--------Message-------",message.toString())
     }
 
     override fun onPushPermissionResponse(accepted: Boolean) {
@@ -1017,6 +1042,23 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
     ) {
         Log.d("onDismissed", extras.toString())
         Log.d("onDismissed", actionExtras.toString())
+    }
+
+
+    fun clearSPS()
+    {
+        val preferences = applicationContext.getSharedPreferences("WizRocket", MODE_PRIVATE)  ?: return
+        val editor = preferences.edit()
+        editor.clear()
+        editor.apply()
+        CleverTapAPI.setInstances(null)
+        cleverTapDefaultInstance = CleverTapAPI.getDefaultInstance(applicationContext)
+        Log.e("app", Gson().toJson(cleverTapDefaultInstance?.getCleverTapID {
+            Log.e(
+                "app",
+                cleverTapDefaultInstance?.cleverTapID.toString()
+            )
+        }))
     }
 
 
