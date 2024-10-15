@@ -20,6 +20,7 @@ import com.clevertap.android.sdk.pushnotification.NotificationInfo;
 //import com.clevertap.android.sdk.pushnotification.fcm.CTFcmMessageHandler;
 //import com.clevertap.android.sdk.pushnotification.fcm.CTFcmMessageHandler;
 //import com.clevertap.android.xps.CTXiaomiMessageHandler;
+import com.clevertap.android.sdk.pushnotification.fcm.CTFcmMessageHandler;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.google.gson.Gson;
@@ -51,7 +52,7 @@ public class MYFCM extends FirebaseMessagingService {
         boolean flag = info.fromCleverTap;
 
         if (!flag) {
-// if payload from Firebse
+       // if payload from Firebse
             Log.d("FCM data", "FCM data: " + new Gson().toJson(message));   // to print payload
             Log.d("img", "img: " + message.getNotification().getImageUrl());
             Log.d("title", "title = [" + message.getNotification().getTitle() + "]");

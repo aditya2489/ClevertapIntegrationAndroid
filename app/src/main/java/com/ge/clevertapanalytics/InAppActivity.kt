@@ -1,12 +1,15 @@
 package com.ge.clevertapanalytics
 
 import android.app.NotificationManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import com.clevertap.android.sdk.CleverTapAPI
@@ -38,6 +41,23 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
 
         renderInApp()
         initializeNativeDisplay()
+
+        if ("Dismiss" == intent.action) {
+            var notificationId : Int = intent.getIntExtra("nid", -1)
+            if(notificationId != -1) {
+                val notificationManager =
+                    getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancel(notificationId);
+            }
+        }
+
+        val message = intent.getStringExtra("coupon")
+        if (message != null) {
+            textCopy(this,message)
+        } else {
+            Toast.makeText(this, "Invalid coupon!", Toast.LENGTH_SHORT)
+                .show()
+        }
     }
     private fun initializeNativeDisplay() {
         try {
@@ -66,7 +86,7 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
 
     private fun renderInApp() {
         try{
-
+            cleverTapDefaultInstance!!.pushEvent("InAppActivity")
         }
         catch (e : Exception){
 
@@ -114,6 +134,21 @@ class InAppActivity : AppCompatActivity(), InAppNotificationButtonListener, Disp
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             cleverTapDefaultInstance?.pushNotificationClickedEvent(intent!!.extras)
             dismissNotification(intent!!,this)
+            Log.d("MainActivityNewIntent", "-------------------"+intent.dataString)
+
+        }
+    }
+
+    private fun textCopy(context: Context, couponCode: String) {
+        try {
+            val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("label", couponCode)
+            clipboard.setPrimaryClip(clip)
+        } catch (e: java.lang.Exception) {
+            com.google.android.exoplayer2.util.Log.e(
+                "Exception - ",
+                "PushTemplateRenderer " + e.localizedMessage
+            )
         }
     }
 

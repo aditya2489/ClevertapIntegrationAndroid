@@ -16,4 +16,6 @@
     <string name="addedtocart">ATC</string>
     <string name="charged">Charged</string>
     <string name="addcartMultivalue">Add Cart</string>
+    <string name="coupon_code">COUPON CODE</string>
+    <string name="logo">logo</string>
 </resources>

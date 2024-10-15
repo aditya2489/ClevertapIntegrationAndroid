@@ -30,17 +30,18 @@
             android:exported="false" />
         <activity
             android:name=".InAppActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter android:label="XYZ">
                 <action android:name="android.intent.action.VIEW" />
-
+                <action android:name="Dismiss" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="android"
+                    android:host="cltanalytics"
                     android:pathPrefix="/deeplinktest"
-                    android:scheme="cltanalytics" />
+                    android:scheme="android" />
             </intent-filter>
         </activity>
         <activity
@@ -61,10 +62,10 @@
             android:value="TEST-1ab-305" />
         <!--<meta-data
             android:name="CLEVERTAP_ACCOUNT_ID"
-            android:value="TEST-67Z-45K-876Z" />
+            android:value="4WK-87Z-666Z" />
         <meta-data
             android:name="CLEVERTAP_TOKEN"
-            android:value="TEST-354-1a6" />-->
+            android:value="1ab-304" />-->
 
 
         <meta-data
@@ -78,12 +79,14 @@
             android:value="1" />
 
         <service
-            android:name=".PushTemplateMessagingService"
+            android:name=".MyFCMService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <receiver android:name=".NotificationDismissReceiver" />
+
     </application>
 
 </manifest>

@@ -96,7 +96,8 @@ public class PushTemplateHandler extends android.app.Application  implements CTP
         try {
             defaultFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
             Log.d("======== CTid ========",Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this)).getCleverTapID());
-            defaultFirebaseAnalytics.setUserProperty("ct_objectId", Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this)).getCleverTapID());
+            //defaultFirebaseAnalytics.setUserProperty("ct_objectId", Objects.requireNonNull(CleverTapAPI.getDefaultInstance(this)).getCleverTapID());
+
         }catch(Exception e)
         {
             Log.d("No CTid exception",e.getLocalizedMessage());

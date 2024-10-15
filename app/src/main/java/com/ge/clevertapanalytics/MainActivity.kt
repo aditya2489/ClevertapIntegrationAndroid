@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.NotificationManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -54,7 +56,10 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
 import com.segment.analytics.Analytics
 import com.segment.analytics.Properties
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -64,7 +69,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.Executors
-import kotlinx.coroutines.*
 
 
 class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInboxListener,
@@ -793,9 +797,21 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        Log.d("MainActivityNewIntent", "-------------------")
-    }
+        if (intent != null) {
+            Log.d("MainActivityNewIntent", "-------------------"+intent.dataString)
+            if ("com.ge.copycoupon" == intent.action) {
+                val message = intent.getStringExtra("coupon")
+                if (message != null) {
+                    textCopy(this,message)
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Button clicked, but no message!", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+        }
 
+    }
 
 
     override fun onLocationUpdates(location: Location?) {
@@ -1061,6 +1077,17 @@ class MainActivity : AppCompatActivity(), InAppNotificationButtonListener, CTInb
         }))
     }
 
-
+    private fun textCopy(context: Context, couponCode: String) {
+        try {
+            val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("label", couponCode)
+            clipboard.setPrimaryClip(clip)
+        } catch (e: java.lang.Exception) {
+            com.google.android.exoplayer2.util.Log.e(
+                "Exception - ",
+                "PushTemplateRenderer " + e.localizedMessage
+            )
+        }
+    }
 
 }
